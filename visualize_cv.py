@@ -114,7 +114,7 @@ def apply_mask(image, mask, color, alpha=0.5):
     return image
 
 
-def display_instances(image, boxes, masks, ids, names, scores, num_frames):
+def display_instances(image, boxes, masks, ids, names, scores, nFrames):
     """
         take the image and results and apply the mask, box, and Label
     """
@@ -146,16 +146,20 @@ def display_instances(image, boxes, masks, ids, names, scores, num_frames):
         print('NO INSTANCES TO DISPLAY')
     else:
         assert boxes.shape[0] == masks.shape[-1] == ids.shape[0]
-
+    
+    status = "Detecting"
+    trackers = []
+    # if totalFrames % args["skip_frames"] == 0:
     for i in range(n_instances):
         if not np.any(boxes[i]):
             continue
 
         y1, x1, y2, x2 = boxes[i]
         label = names[ids[i]]
-        if label != "car" and label != "person" and label != "motorcycle" and label != "bicycle":
+        # if label != "car" and label != "person" and label != "motorcycle" and label != "bicycle":
+        #     continue
+        if label != "car":
             continue
-        
         color = class_dict[label]
         score = scores[i] if scores is not None else None
         caption = '{} {:.2f}'.format(label, score) if score else label
@@ -163,14 +167,53 @@ def display_instances(image, boxes, masks, ids, names, scores, num_frames):
 
         image = apply_mask(image, mask, color)
         image = cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+        # add the bounding box coordinates to the rectangles list
+        rects.append((x1, y1, x2, y2))
+        # construct a dlib rectangle object from the bounding
+        # box coordinates and then start the dlib correlation
+        # tracker
+        tracker = dlib.correlation_tracker()
+        rect = dlib.rectangle(x1, y1, x2, y2)
+        tracker.start_track(image, rect)
+        trackers.append(tracker)
+
+        # draw the score on the left corner of rectangle
         image = cv2.putText(
             image, caption, (x1, y1), cv2.FONT_HERSHEY_COMPLEX, 0.7, color, 2
         )
-        # draw a horizontal line in the center of the frame -- once an
-        # object crosses this line we will determine whether they were
-        # moving 'up' or 'down'
-        cv2.line(image, (0, H // 2), (W, H // 2), (0, 255, 255), 2)
-    return image
+        
+        # loop over the trackers
+        # for tracker in trackers:
+        #     # set the status of our system to be 'tracking' rather
+		# 	# than 'waiting' or 'detecting'
+        #     status = "Tracking"
+        #     # update the tracker and grab the updated position
+        #     #tracker.update(rgb)
+        #     #pos = tracker.get_position()
+        #     # unpack the position object
+        #     # startX = int(pos.left())
+        #     # startY = int(pos.top())
+        #     # endX = int(pos.right())
+        #     # endY = int(pos.bottom())
+
+    # draw a horizontal line in the center of the frame -- once an
+    # object crosses this line we will determine whether they were
+    # moving 'up' or 'down'
+    cv2.line(image, (0, H // 2), (W, H // 2), (0, 255, 255), 2)
+
+    # use the centroid tracker to associate the (1) old object
+    # centroids with (2) the newly computed object centroids
+    objects = ct.update(rects)
+    # loop over the tracked objects
+    for (objectID, centroid) in objects.items():
+        # draw both the ID of the object and the centroid of the
+        # object on the output frame
+        text = "ID {}".format(objectID)
+        cv2.putText(image, text, (centroid[0] - 10, centroid[1] - 10),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (4, 31, 26), 2)
+        cv2.circle(image, (centroid[0], centroid[1]), 4, (4, 31, 26), -1)
+        
+    return image, rects
 
 
 if __name__ == '__main__':

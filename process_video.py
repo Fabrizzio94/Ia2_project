@@ -41,7 +41,7 @@ model = modellib.MaskRCNN(
 model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 # Initialize video capture from video file
-capture = cv2.VideoCapture('videos/video.mp4')
+capture = cv2.VideoCapture('videos/UTM.mp4')
 # try to determine the total number of frames in the video file
 try:
 	# prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
@@ -61,8 +61,8 @@ size = (
     int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 )
 codec = cv2.VideoWriter_fourcc(*'DIVX')
-output = cv2.VideoWriter('output/video_counter_1.avi', codec, 30.0, size)
-
+output = cv2.VideoWriter('output/video_counter_utm_1.avi', codec, 30.0, size)
+counter = 0
 while(capture.isOpened()):
     ret, frame = capture.read()
     if ret:
@@ -70,12 +70,13 @@ while(capture.isOpened()):
         results = model.detect([frame], verbose=0)
         #print(results)
         r = results[0]
-        frame = display_instances(
-            frame, r['rois'], r['masks'], r['class_ids'], CLASS_NAMES, r['scores'], total
+        #rects = []
+        frame, rects = display_instances(
+            frame, r['rois'], r['masks'], r['class_ids'], CLASS_NAMES, r['scores'], counter
         )
         output.write(frame)
         cv2.imshow('frame', frame)
-
+        counter += 1
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     else:
