@@ -61,7 +61,7 @@ size = (
     int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 )
 codec = cv2.VideoWriter_fourcc(*'DIVX')
-output = cv2.VideoWriter('output/video_debug_utpl_1.avi', codec, 30.0, size)
+output = cv2.VideoWriter('output/video_utpl_counter_2.avi', codec, 30.0, size)
 counter = 0
 # initialize the total number of frames processed thus far, along
 # with the total number of objects that have moved either up or down
