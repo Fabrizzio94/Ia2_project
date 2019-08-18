@@ -112,25 +112,21 @@ def apply_mask(image, mask, color, alpha=0.5):
             image[:, :, n]
         )
     return image
+# instantiate our centroid tracker, then initialize a list to store
+# each of our dlib correlation trackers, followed by a dictionary to
+# map each unique object ID to a TrackableObject
+ct = CentroidTracker(maxDisappeared=40, maxDistance=50)
+trackers = []
+trackableObjects = {}
 
 
-def display_instances(image, boxes, masks, ids, names, scores, nFrames):
+"""" - - - - - - - - - -- - - - - - -"""
+
+def display_instances(image, boxes, masks, ids, names, scores, nFrames, totalDown, totalUp, trackers):
     """
         take the image and results and apply the mask, box, and Label
     """
-    # instantiate our centroid tracker, then initialize a list to store
-    # each of our dlib correlation trackers, followed by a dictionary to
-    # map each unique object ID to a TrackableObject
-    ct = CentroidTracker(maxDisappeared=40, maxDistance=50)
-    trackers = []
-    trackableObjects = {}
-
-    # initialize the total number of frames processed thus far, along
-    # with the total number of objects that have moved either up or down
-    totalFrames = 0
-    totalDown = 0
-    totalUp = 0
-    """" - - - - - - - - - -- - - - - - -"""
+    
     # initialize the current status along with our list of bounding
 	# box rectangles returned by either (1) our object detector or
 	# (2) the correlation trackers
@@ -147,68 +143,60 @@ def display_instances(image, boxes, masks, ids, names, scores, nFrames):
     else:
         assert boxes.shape[0] == masks.shape[-1] == ids.shape[0]
     
-    # status = "Detecting"
-    # trackers = []
-    for i in range(n_instances):
-        if not np.any(boxes[i]):
-            continue
-        y1, x1, y2, x2 = boxes[i]
-        label = names[ids[i]]
-        # if label != "car" and label != "person" and label != "motorcycle" and label != "bicycle":
-        #     continue
-        if label != "car":
-            continue
-        color = class_dict[label]
-        score = scores[i] if scores is not None else None
-        caption = '{} {:.2f}'.format(label, score) if score else label
-        mask = masks[:, :, i]
-
-        image = apply_mask(image, mask, color)
-        image = cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
-        # draw the score on the left corner of rectangle
-        image = cv2.putText(
-            image, caption, (x1, y1), cv2.FONT_HERSHEY_COMPLEX, 0.7, color, 2
-        )
-        #trackers = []
-        if nFrames % args["skip_frames"] == 0:
-            # set the status and initialize our new set of object trackers
-            status = "Detecting"
+    if nFrames % args["skip_frames"] == 0:
+        status = "Detecting"
+        trackers = []
+        for i in range(n_instances):
             
+            
+            if not np.any(boxes[i]):
+                continue
+
+            y1, x1, y2, x2 = boxes[i]
+            label = names[ids[i]]
+            # if label != "car" and label != "person" and label != "motorcycle" and label != "bicycle":
+            #     continue
+            if label != "car":
+                continue
+            color = class_dict[label]
+            score = scores[i] if scores is not None else None
+            caption = '{} {:.2f}'.format(label, score) if score else label
+            mask = masks[:, :, i]
+
+            image = apply_mask(image, mask, color)
+            image = cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+            # add the bounding box coordinates to the rectangles list
+            # rects.append((x1, y1, x2, y2))
             # construct a dlib rectangle object from the bounding
             # box coordinates and then start the dlib correlation
             # tracker
             tracker = dlib.correlation_tracker()
             rect = dlib.rectangle(x1, y1, x2, y2)
             tracker.start_track(image, rect)
+            # add the tracker to our list of trackers so we can
+			# utilize it during skip frames
             trackers.append(tracker)
-            rects.append((x1, y1, x2, y2))
-            print("trackers 1: " + str(len(trackers)))
-            for x in np.ndenumerate(trackers): 
-                print(x) 
-            
-        else:
-            #loop over the trackers
-            print("x1 = [",x1, "] -", "y1=[",y1, "] -", "x2=[",x2, "] -", "y2=[",y2, "]")
-            #print("trackers bucle 2: " + str(len(trackers)))
-            print("trackers 2: " + str(len(trackers)))
-            for tracker in trackers:
-                print("entro en trackers")
-                # set the status of our system to be 'tracking' rather
-                # than 'waiting' or 'detecting'
-                status = "Tracking"
-                # update the tracker and grab the updated position
-                tracker.update(image)
-                pos = tracker.get_position()
-                # unpack the position object
-                startX = int(pos.left())
-                startY = int(pos.top())
-                endX = int(pos.right())
-                endY = int(pos.bottom())
-                # add the bounding box coordinates to the rectangles list
-                #rects.append((x1, y1, x2, y2))
-                rects.append((startX, startY, endX, endY))
-                print("rects: " + str(len(rects)))
-            #print("rects bucle 2: " + str(len(rects)))
+
+            # draw the score on the left corner of rectangle
+            image = cv2.putText(
+                image, caption, (x1, y1), cv2.FONT_HERSHEY_COMPLEX, 0.7, color, 2
+            )
+    else:
+        # loop over the trackers
+        for tracker in trackers:
+            # set the status of our system to be 'tracking' rather
+			# than 'waiting' or 'detecting'
+            status = "Tracking"
+            # update the tracker and grab the updated position
+            tracker.update(image)
+            pos = tracker.get_position()
+            # unpack the position object
+            startX = int(pos.left())
+            startY = int(pos.top())
+            endX = int(pos.right())
+            endY = int(pos.bottom())
+            # add the bounding box coordinates to the rectangles list
+            rects.append((startX, startY, endX, endY))
 
     # draw a horizontal line in the center of the frame -- once an
     # object crosses this line we will determine whether they were
@@ -221,54 +209,52 @@ def display_instances(image, boxes, masks, ids, names, scores, nFrames):
     # loop over the tracked objects
     for (objectID, centroid) in objects.items():
         # check to see if a trackable object exists for the current
-        # object ID
+		# object ID
         to = trackableObjects.get(objectID, None)
-        
         # if there is no existing trackable object, create one
         if to is None:
             to = TrackableObject(objectID, centroid)
-
-        # otherwise, there is a trackable object so we can utilize it
-        # to determine direction
+		# otherwise, there is a trackable object so we can utilize it
+		# to determine direction
         else:
             # the difference between the y-coordinate of the *current*
-            # centroid and the mean of *previous* centroids will tell
-            # us in which direction the object is moving (negative for
-            # 'up' and positive for 'down')
+			# centroid and the mean of *previous* centroids will tell
+			# us in which direction the object is moving (negative for
+			# 'up' and positive for 'down')
             y = [c[1] for c in to.centroids]
             direction = centroid[1] - np.mean(y)
             to.centroids.append(centroid)
-            # check to see if the object has been counted or not
+
+			# check to see if the object has been counted or not
             if not to.counted:
                 # if the direction is negative (indicating the object
-                # is moving up) AND the centroid is above the center
-                # line, count the object
+				# is moving up) AND the centroid is above the center
+				# line, count the object
                 if direction < 0 and centroid[1] < H // 2:
                     totalUp += 1
                     to.counted = True
-                # if the direction is positive (indicating the object
-                # is moving down) AND the centroid is below the
-                # center line, count the object
+
+				# if the direction is positive (indicating the object
+				# is moving down) AND the centroid is below the
+				# center line, count the object
                 elif direction > 0 and centroid[1] > H // 2:
                     totalDown += 1
                     to.counted = True
-                    
-        # store the trackable object in our dictionary
-        trackableObjects[objectID] = to
 
+		# store the trackable object in our dictionary
+        trackableObjects[objectID] = to
         # draw both the ID of the object and the centroid of the
         # object on the output frame
         text = "ID {}".format(objectID)
         cv2.putText(image, text, (centroid[0] - 10, centroid[1] - 10),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (4, 31, 26), 2)
         cv2.circle(image, (centroid[0], centroid[1]), 4, (4, 31, 26), -1)
-    
     # construct a tuple of information we will be displaying on the
 	# frame
     info = [
-        ("Up", totalUp),
-        ("Down", totalDown),
-        ("Status", status),
+		("Up", totalUp),
+		("Down", totalDown),
+		("Status", status),
 	]
 
 	# loop over the info tuples and draw them on our frame
@@ -276,7 +262,7 @@ def display_instances(image, boxes, masks, ids, names, scores, nFrames):
         text = "{}: {}".format(k, v)
         cv2.putText(image, text, (10, H - ((i * 20) + 20)),
 			cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-    return image
+    return image, totalDown, totalUp, trackers
 
 
 if __name__ == '__main__':
