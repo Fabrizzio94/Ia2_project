@@ -41,7 +41,7 @@ model = modellib.MaskRCNN(
 model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 # Initialize video capture from video file
-capture = cv2.VideoCapture('videos/UTM.mp4')
+capture = cv2.VideoCapture('videos/UTPL3.mp4')
 # try to determine the total number of frames in the video file
 try:
 	# prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
@@ -61,8 +61,14 @@ size = (
     int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 )
 codec = cv2.VideoWriter_fourcc(*'DIVX')
-output = cv2.VideoWriter('output/video_counter_utm_1.avi', codec, 30.0, size)
+output = cv2.VideoWriter('output/video_debug_utpl_1.avi', codec, 30.0, size)
 counter = 0
+# initialize the total number of frames processed thus far, along
+# with the total number of objects that have moved either up or down
+#totalFrames = 0
+totalDown = 0
+totalUp = 0
+trackers = []
 while(capture.isOpened()):
     ret, frame = capture.read()
     if ret:
@@ -70,9 +76,10 @@ while(capture.isOpened()):
         results = model.detect([frame], verbose=0)
         #print(results)
         r = results[0]
-        #rects = []
-        frame, rects = display_instances(
-            frame, r['rois'], r['masks'], r['class_ids'], CLASS_NAMES, r['scores'], counter
+        
+        frame, totalDown, totalUp, trackers = display_instances(
+            frame, r['rois'], r['masks'], r['class_ids'], CLASS_NAMES, r['scores'], counter,
+            totalDown, totalUp, trackers
         )
         output.write(frame)
         cv2.imshow('frame', frame)
