@@ -1,0 +1,17 @@
+videos/
+
+output/
+
+mask-rcnn-coco
+
+process_video.ipynb
+
+process_video
+
+images
+
+mask_rcnn_coco.h5
+
+visualize_cv.ipynb
+
+visualize_cv2.py
