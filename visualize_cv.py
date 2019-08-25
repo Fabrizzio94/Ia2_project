@@ -27,7 +27,7 @@ ap = argparse.ArgumentParser()
 
 ap.add_argument("-c", "--confidence", type=float, default=0.5,
 	help="minimum probability to filter weak detections")
-ap.add_argument("-s", "--skip-frames", type=int, default=5,
+ap.add_argument("-s", "--skip-frames", type=int, default=40,
 	help="# of skip frames between detections")
 args = vars(ap.parse_args())
 # construct the argument parse and parse the arguments
@@ -115,7 +115,7 @@ def apply_mask(image, mask, color, alpha=0.5):
 # instantiate our centroid tracker, then initialize a list to store
 # each of our dlib correlation trackers, followed by a dictionary to
 # map each unique object ID to a TrackableObject
-ct = CentroidTracker(maxDisappeared=40, maxDistance=50)
+ct = CentroidTracker(maxDisappeared=30, maxDistance=50)
 trackers = []
 trackableObjects = {}
 
@@ -150,11 +150,17 @@ def display_instances(image, boxes, masks, ids, names, scores, nFrames, totalDow
         if not np.any(boxes[i]):
             continue
         label = names[ids[i]]
-        if label != "car":
+        if label != "car": #and label != "person" and label != "motorcycle" and label != "bicycle":
             continue
+        if label == "car" and scores[i] > 0.85:
+            image, x1, y1, x2, y2 = detections(image, scores[i], class_dict, masks[:, :, i], label, boxes[i])
+        else:
+            continue
+        # if label == "person" and scores[i] > 0.90:
+        #     image, x1, y1, x2, y2 = detections(image, scores[i], class_dict, masks[:, :, i], label, boxes[i])
         # images and masks of image
-        image, x1, y1, x2, y2 = detections(image, scores[i], class_dict, masks[:, :, i], label, boxes[i])
-        if nFrames % args["skip_frames"] == 1:
+        #image, x1, y1, x2, y2 = detections(image, scores[i], class_dict, masks[:, :, i], label, boxes[i])
+        if nFrames % args["skip_frames"] != 0:
             continue
         # add the bounding box coordinates to the rectangles list
         # rects.append((x1, y1, x2, y2))
@@ -168,7 +174,7 @@ def display_instances(image, boxes, masks, ids, names, scores, nFrames, totalDow
         # utilize it during skip frames
         trackers.append(tracker)
 
-    if nFrames % args["skip_frames"] == 1:
+    if nFrames % args["skip_frames"] != 0:
     
         # loop over the trackers
         for tracker in trackers:
@@ -253,11 +259,6 @@ def display_instances(image, boxes, masks, ids, names, scores, nFrames, totalDow
 			cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
     return image, totalDown, totalUp, trackers
 def detections(image, scores, class_dict, masks, label, boxes):
-    
-    
-    # if label != "car" and label != "person" and label != "motorcycle" and label != "bicycle":
-    #     continue
-    
     y1, x1, y2, x2 = boxes
     color = class_dict[label]
     score = scores if scores is not None else None

@@ -41,7 +41,7 @@ model = modellib.MaskRCNN(
 model.load_weights(COCO_MODEL_PATH, by_name=True)
 
 # Initialize video capture from video file
-capture = cv2.VideoCapture('videos/UTPL3.mp4')
+capture = cv2.VideoCapture('videos/video_2.mp4')
 # try to determine the total number of frames in the video file
 try:
 	# prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
@@ -61,7 +61,7 @@ size = (
     int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 )
 codec = cv2.VideoWriter_fourcc(*'DIVX')
-output = cv2.VideoWriter('output/video_utpl_counter_2.avi', codec, 30.0, size)
+output = cv2.VideoWriter('output/video_2.avi', codec, 30.0, size)
 counter = 0
 # initialize the total number of frames processed thus far, along
 # with the total number of objects that have moved either up or down
@@ -81,8 +81,11 @@ while(capture.isOpened()):
             frame, r['rois'], r['masks'], r['class_ids'], CLASS_NAMES, r['scores'], counter,
             totalDown, totalUp, trackers
         )
+        cv2.namedWindow("output", cv2.WINDOW_FREERATIO)        # Create window with freedom of dimensions
+        imS = cv2.resize(frame, (2122, 1152))                    # Resize image
+        cv2.imshow("output", imS)         
         output.write(frame)
-        cv2.imshow('frame', frame)
+        #cv2.imshow('frame', frame)
         counter += 1
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
